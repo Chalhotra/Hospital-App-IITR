@@ -1,4 +1,5 @@
 import 'package:dummy/app_colours.dart';
+import 'package:dummy/pages/book_appointment_page/book_appointment_page.dart';
 import 'package:flutter/material.dart';
 
 class ConfirmationCodePage extends StatefulWidget {
@@ -107,14 +108,19 @@ class _ConfirmationCodePageState extends State<ConfirmationCodePage> {
                 const SizedBox(height: 30),
 
                 // ===== RESEND CODE =====
-                InkWell(
-                  splashColor: AppColours.mainColor,
-                  onTap: () {},
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: Text(
-                      "  Resend code  ",
-                      style: TextStyle(color: AppColours.linkRed, fontSize: 15),
+                TextButton(
+                  onPressed: () {
+                    // TODO: implement resend code logic
+                  },
+                  style: TextButton.styleFrom(
+                    splashFactory: InkRipple.splashFactory,
+                    overlayColor: AppColours.mainColor.withOpacity(0.1),
+                  ),
+                  child: const Text(
+                    "Resend code",
+                    style: TextStyle(
+                      color: AppColours.linkRed,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -136,7 +142,17 @@ class _ConfirmationCodePageState extends State<ConfirmationCodePage> {
                         ),
                       ),
                     ),
-                    onPressed: _isFilled ? () {} : null,
+                    onPressed: _isFilled
+                        ? () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const BookAppointmentPage(),
+                              ),
+                            );
+                          }
+                        : null,
                     child: const Text(
                       "Continue",
                       style: TextStyle(fontSize: 16, color: Colors.white),

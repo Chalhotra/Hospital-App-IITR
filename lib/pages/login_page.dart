@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dummy/pages/book_appointment_page/book_appointment_page.dart';
+import 'package:dummy/pages/confirmation_code_page.dart';
 import 'package:dummy/pages/signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -11,6 +11,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
+  final TextEditingController _bookletController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +63,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     // Booklet No. field
                     TextField(
+                      controller: _bookletController,
                       decoration: InputDecoration(
                         labelText: 'Booklet No.',
                         hintText: 'Enter your booklet number',
@@ -145,10 +147,15 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         onPressed: () {
+                          String bookletNo = _bookletController.text.trim();
+                          if (bookletNo.isEmpty) {
+                            bookletNo = "user@example.com"; // Default if empty
+                          }
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const BookAppointmentPage(),
+                              builder: (context) =>
+                                  ConfirmationCodePage(email: bookletNo),
                             ),
                           );
                         },
