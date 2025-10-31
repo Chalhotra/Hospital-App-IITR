@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:dummy/pages/book_appointment_page/book_appointment_page.dart';
+import 'package:dummy/pages/signup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -142,7 +144,14 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BookAppointmentPage(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Login',
                           style: TextStyle(fontSize: 16, color: Colors.white),
@@ -158,7 +167,14 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         const Text("Not a member? "),
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpPage(),
+                              ),
+                            );
+                          },
                           child: const Text(
                             "Register now",
                             style: TextStyle(
