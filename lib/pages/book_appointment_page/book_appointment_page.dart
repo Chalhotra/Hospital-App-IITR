@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dummy/app_colours.dart';
 import 'package:dummy/widgets/app_bottom_nav_bar.dart';
-import 'package:dummy/pages/profile_page/profile_page.dart';
+import 'package:dummy/pages/profile_page.dart';
 import 'package:dummy/pages/your_bookings_page.dart';
 
 class BookAppointmentPage extends StatefulWidget {
@@ -177,32 +177,6 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
               // Doctor
               const Text(
-                "Select Doctor",
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColours.borderGrey),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton(
-                    value: selectedDoctor,
-                    isExpanded: true,
-                    items: doctors.map((e) {
-                      return DropdownMenuItem(value: e, child: Text(e));
-                    }).toList(),
-                    onChanged: (v) => setState(() => selectedDoctor = v!),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Shift
-              const Text(
                 "Select Shift",
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
@@ -225,6 +199,31 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                 ),
               ),
 
+              const SizedBox(height: 18),
+
+              // Shift
+              const Text(
+                "Select Doctor",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColours.borderGrey),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton(
+                    value: selectedDoctor,
+                    isExpanded: true,
+                    items: doctors.map((e) {
+                      return DropdownMenuItem(value: e, child: Text(e));
+                    }).toList(),
+                    onChanged: (v) => setState(() => selectedDoctor = v!),
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
 
               // REQUEST BUTTON

@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:dummy/pages/confirmation_code_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dummy/bloc/auth_bloc.dart';
+import 'package:dummy/bloc/auth_event.dart';
+import 'package:dummy/bloc/auth_state.dart';
+import 'package:dummy/bloc/patient_bloc.dart';
+import 'package:dummy/bloc/patient_event.dart';
+import 'package:dummy/pages/book_appointment_page/book_appointment_page.dart';
 import 'package:dummy/pages/signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -12,6 +18,14 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   final TextEditingController _bookletController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _bookletController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +99,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     // Password field
                     TextField(
+                      controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
@@ -136,34 +151,94 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 10),
 
                     // Login button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: mainColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          String bookletNo = _bookletController.text.trim();
-                          if (bookletNo.isEmpty) {
-                            bookletNo = "user@example.com"; // Default if empty
-                          }
+                    BlocConsumer<AuthBloc, AuthState>(
+                      listener: (context, state) {
+                        if (state is AuthAuthenticated) {
+                          print(
+                            '✅ [LOGIN] User authenticated, patient info already cached',
+                          );
+
+                          // Trigger patient bloc to load from cache
+                          context.read<PatientBloc>().add(
+                            PatientLoadRequested(state.user.token),
+                          );
+
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ConfirmationCodePage(email: bookletNo),
+                              builder: (context) => const BookAppointmentPage(),
                             ),
                           );
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
-                        ),
-                      ),
+                        } else if (state is AuthError) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Login failed: ${state.message}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      builder: (context, state) {
+                        final isLoading = state is AuthLoading;
+
+                        return SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: mainColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () {
+                                    final username = _bookletController.text
+                                        .trim();
+                                    final password = _passwordController.text
+                                        .trim();
+
+                                    if (username.isEmpty || password.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Please enter both username and password',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    context.read<AuthBloc>().add(
+                                      AuthLoginRequested(
+                                        username: username,
+                                        password: password,
+                                      ),
+                                    );
+                                  },
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 20),
