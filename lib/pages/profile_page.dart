@@ -10,6 +10,7 @@ import 'package:dummy/pages/book_appointment_page/book_appointment_page.dart';
 import 'package:dummy/pages/login_page.dart';
 import 'package:dummy/pages/prescription_page/prescription_page.dart';
 import 'package:dummy/pages/test_results_page/test_results_page.dart';
+import 'package:dummy/pages/downloaded_files_page/downloaded_files_page.dart';
 import 'package:dummy/pages/your_bookings_page.dart';
 import 'package:dummy/widgets/app_bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
@@ -399,6 +400,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 title: const Text("Prescriptions"),
+                trailing: const Icon(Icons.chevron_right),
+              ),
+
+              Divider(color: AppColours.borderGrey),
+
+              // Downloaded Files
+              ListTile(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DownloadedFilesPage(),
+                    ),
+                  );
+                },
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Downloaded Files"),
                 trailing: const Icon(Icons.chevron_right),
               ),
 

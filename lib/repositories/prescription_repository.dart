@@ -62,16 +62,35 @@ class PrescriptionRepository {
         final prescriptions = jsonList
             .map((json) => Prescription.fromJson(json as Map<String, dynamic>))
             .toList();
+
         print('✅ Successfully fetched ${prescriptions.length} prescriptions');
+        print('📋 ========== PRESCRIPTION LIST ========== 📋');
+        for (var i = 0; i < prescriptions.length; i++) {
+          final p = prescriptions[i];
+          print('   ${i + 1}. ${p.drugName}');
+          print('      Salt: ${p.drugSalt}');
+          print('      Type: ${p.drugType}');
+          print('      Dosage: ${p.dossage}');
+          print('      Quantity: ${p.qty}');
+          print('      Remark: ${p.remark}');
+          print('      Issued By: ${p.issuedBy} on ${p.issuedOn}');
+          if (i < prescriptions.length - 1) print('   ---');
+        }
+        print('📋 ======================================== 📋');
+
         return prescriptions;
       } else {
         print('❌ Failed to fetch prescriptions: ${response.statusCode}');
+        print('❌ Raw response body on failure: ${response.body}');
+        print('❌ Response headers: ${response.headers}');
         throw Exception(
           'Failed to fetch prescriptions: ${response.statusCode}',
         );
       }
     } catch (e) {
       print('❌ Error fetching prescriptions: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace: ${StackTrace.current}');
       throw Exception('Error fetching prescriptions: $e');
     }
   }

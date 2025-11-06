@@ -36,20 +36,20 @@ class Prescription extends Equatable {
 
   factory Prescription.fromJson(Map<String, dynamic> json) {
     return Prescription(
-      prescriptionID: json['prescriptionID'] as int,
-      appointmentID: json['appointmentID'] as int,
+      prescriptionID: json['prescriptionID'] as int? ?? 0,
+      appointmentID: json['appointmentID'] as int? ?? 0,
       opd: Opd.fromJson(json['opd'] as Map<String, dynamic>),
-      code: json['code'] as int,
-      drugName: json['drugName'] as String,
-      drugSalt: json['drugSalt'] as String,
-      drugType: json['drugType'] as String,
-      dossage: json['dossage'] as String,
-      remark: json['remark'] as String,
-      qty: json['qty'] as int,
-      medFrom: json['medFrom'] as String,
-      issued: json['issued'] as int,
-      issuedBy: json['issuedBy'] as String,
-      issuedOn: json['issuedOn'] as String,
+      code: json['code'] as int? ?? 0,
+      drugName: json['drugName'] as String? ?? '',
+      drugSalt: json['drugSalt'] as String? ?? '',
+      drugType: json['drugType'] as String? ?? '',
+      dossage: json['dossage'] as String? ?? '',
+      remark: json['remark'] as String? ?? '',
+      qty: json['qty'] as int? ?? 0,
+      medFrom: json['medFrom'] as String? ?? '',
+      issued: json['issued'] as int? ?? 0,
+      issuedBy: json['issuedBy'] as String? ?? '',
+      issuedOn: json['issuedOn'] as String? ?? '',
     );
   }
 

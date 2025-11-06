@@ -6,10 +6,9 @@ import 'package:dummy/bloc/prescription_bloc.dart';
 import 'package:dummy/bloc/prescription_event.dart';
 import 'package:dummy/bloc/prescription_state.dart';
 import 'package:dummy/repositories/auth_repository.dart';
-import 'package:dummy/repositories/prescription_repository.dart';
 import 'package:dummy/pages/prescription_page/prescription_details_page.dart';
 import 'package:dummy/services/pdf_service.dart';
-import 'package:dummy/models/opd.dart';
+import 'package:open_file/open_file.dart';
 
 class PrescriptionsPage extends StatefulWidget {
   const PrescriptionsPage({super.key});
@@ -56,6 +55,132 @@ class _PrescriptionsPageState extends State<PrescriptionsPage> {
             icon: const Icon(Icons.search, color: Colors.black),
           ),
         ],
+      ),
+
+      floatingActionButton: BlocBuilder<PrescriptionBloc, PrescriptionState>(
+        builder: (context, state) {
+          // Only show FAB when OPDs are loaded and not empty
+          if (state is PrescriptionOpdListLoaded ||
+              state is PrescriptionDetailsLoading ||
+              state is PrescriptionDetailsLoaded) {
+            final opds = state is PrescriptionOpdListLoaded
+                ? state.opds
+                : state is PrescriptionDetailsLoading
+                ? state.opds
+                : (state as PrescriptionDetailsLoaded).opds;
+
+            if (opds.isNotEmpty) {
+              return FloatingActionButton.extended(
+                onPressed: () async {
+                  try {
+                    // Show loading indicator
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Text('Generating PDF summary...'),
+                          ],
+                        ),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+
+                    // Get active booklet number
+                    final authRepository = context.read<AuthRepository>();
+                    final bookletNo = await authRepository.getActiveBookletNo();
+
+                    if (bookletNo == null) {
+                      throw Exception('No active booklet found');
+                    }
+
+                    // Generate summary PDF with all OPDs
+                    final filePath =
+                        await PdfService.generateAllPrescriptionsSummaryPdf(
+                          opds,
+                          bookletNo,
+                        );
+
+                    // Try to open the PDF automatically
+                    try {
+                      await OpenFile.open(filePath);
+                    } catch (openError) {
+                      print('⚠️ Could not auto-open PDF: $openError');
+                      // Continue to show success message even if auto-open fails
+                    }
+
+                    // Show success message with file location
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.white),
+                                  SizedBox(width: 16),
+                                  Text('PDF saved and opened!'),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Saved to: $filePath',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    // Log the error
+                    print('❌ PDF Generation Error: $e');
+
+                    // Show error message
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.error, color: Colors.white),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text('Failed to generate PDF: $e'),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  }
+                },
+                backgroundColor: AppColours.mainColor,
+                icon: const Icon(Icons.download, color: Colors.white),
+                label: const Text(
+                  'Download All',
+                  style: TextStyle(color: Colors.white),
+                ),
+              );
+            }
+          }
+          return const SizedBox.shrink();
+        },
       ),
 
       body: SafeArea(
@@ -126,30 +251,7 @@ class _PrescriptionsPageState extends State<PrescriptionsPage> {
                       },
                     ),
 
-                    const SizedBox(height: 10),
-
-                    // Download All Button
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: SizedBox(
-                        width: 150,
-                        height: 45,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColours.mainColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () => _downloadAllPrescriptions(opds),
-                          icon: const Icon(Icons.download, color: Colors.white, size: 18),
-                          label: const Text(
-                            "Download All",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 80),
                   ],
                 ),
               );
@@ -165,142 +267,6 @@ class _PrescriptionsPageState extends State<PrescriptionsPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _downloadAllPrescriptions(List<Opd> opds) async {
-    if (opds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No prescriptions to download'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text('Downloading ${opds.length} prescription(s)...'),
-            ],
-          ),
-        );
-      },
-    );
-
-    try {
-      final authRepository = context.read<AuthRepository>();
-      final prescriptionRepository = PrescriptionRepository();
-      final user = await authRepository.getSavedUser();
-
-      if (user == null || user.isTokenExpired) {
-        throw Exception('Authentication required. Please login again.');
-      }
-
-      int successCount = 0;
-      int failCount = 0;
-      final List<String> savedPaths = [];
-
-      // Download each prescription
-      for (final opd in opds) {
-        try {
-          print('📥 Downloading prescription for OPD ID: ${opd.opdid}');
-          
-          // Fetch prescription details
-          final prescriptions = await prescriptionRepository.getPrescriptionsByOpdId(
-            user.token,
-            opd.opdid,
-          );
-
-          if (prescriptions.isEmpty) {
-            print('⚠️ No prescription found for OPD ID: ${opd.opdid}');
-            failCount++;
-            continue;
-          }
-
-          // Generate PDF
-          final filePath = await PdfService.generatePrescriptionPdf(
-            prescriptions,
-            opd,
-          );
-          
-          savedPaths.add(filePath);
-          successCount++;
-          print('✅ Downloaded prescription ${successCount}/${opds.length}');
-        } catch (e) {
-          print('❌ Error downloading prescription for OPD ${opd.opdid}: $e');
-          failCount++;
-        }
-      }
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-
-        // Show result
-        String message;
-        Color backgroundColor;
-
-        if (successCount == opds.length) {
-          message = '✅ Successfully downloaded all $successCount prescription(s)!';
-          backgroundColor = Colors.green;
-        } else if (successCount > 0) {
-          message = '⚠️ Downloaded $successCount of ${opds.length} prescription(s). $failCount failed.';
-          backgroundColor = Colors.orange;
-        } else {
-          message = '❌ Failed to download any prescriptions';
-          backgroundColor = Colors.red;
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(message),
-                if (savedPaths.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Files saved to:',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    savedPaths.first.substring(0, savedPaths.first.lastIndexOf('/')),
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ],
-              ],
-            ),
-            backgroundColor: backgroundColor,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ Error in download all: $e');
-      
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download prescriptions: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
   }
 }
 

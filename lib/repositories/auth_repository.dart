@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/login_request.dart';
 import '../models/login_response.dart';
+import '../models/register_request.dart';
 import '../models/user.dart';
 import '../models/patient_info.dart';
 
@@ -38,12 +39,92 @@ class AuthRepository {
         );
         return LoginResponse.fromJson(responseData);
       } else {
-        print('❌ [AUTH] Login failed with status: ${response.statusCode}');
-        throw Exception('Login failed: ${response.statusCode}');
+        // Try to parse error message from response body
+        String errorMessage = 'Invalid credentials';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'];
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'];
+          }
+        } catch (_) {
+          // If parsing fails, use status code based message
+          if (response.statusCode == 401) {
+            errorMessage = 'Invalid username or password';
+          } else if (response.statusCode == 404) {
+            errorMessage = 'Service not available';
+          } else {
+            errorMessage = 'Login failed (${response.statusCode})';
+          }
+        }
+
+        print('❌ [AUTH] Login failed: $errorMessage');
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('❌ [AUTH] Login error: $e');
-      throw Exception('Login error: $e');
+      // Re-throw the exception without wrapping it again if it's already an Exception
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: Please check your connection');
+    }
+  }
+
+  // Register API call
+  Future<LoginResponse> register(RegisterRequest request) async {
+    try {
+      final registerUrl = AppConfig.registerUrl;
+      print('🔵 [AUTH] Making register request to: $registerUrl');
+      print('🔵 [AUTH] Request body: ${json.encode(request.toJson())}');
+
+      final response = await http.post(
+        Uri.parse(registerUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(request.toJson()),
+      );
+
+      print('🔵 [AUTH] Response status code: ${response.statusCode}');
+      print('🔵 [AUTH] Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        print(
+          '✅ [AUTH] Registration successful for user: ${responseData['username']}',
+        );
+        return LoginResponse.fromJson(responseData);
+      } else {
+        // Try to parse error message from response body
+        String errorMessage = 'Registration failed';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData is Map && errorData.containsKey('message')) {
+            errorMessage = errorData['message'];
+          } else if (errorData is Map && errorData.containsKey('error')) {
+            errorMessage = errorData['error'];
+          }
+        } catch (_) {
+          // If parsing fails, use status code based message
+          if (response.statusCode == 400) {
+            errorMessage = 'User already exists or invalid data';
+          } else if (response.statusCode == 404) {
+            errorMessage = 'Service not available';
+          } else {
+            errorMessage = 'Registration failed (${response.statusCode})';
+          }
+        }
+
+        print('❌ [AUTH] Registration failed: $errorMessage');
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('❌ [AUTH] Registration error: $e');
+      // Re-throw the exception without wrapping it again if it's already an Exception
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: Please check your connection');
     }
   }
 
@@ -61,6 +142,46 @@ class AuthRepository {
     await prefs.setString(_rolesKey, loginResponse.roles);
 
     print('✅ [AUTH] User data saved successfully');
+  }
+
+  // Fetch patient info and save it (without triggering auth state)
+  Future<bool> fetchAndSavePatientInfo(String token) async {
+    try {
+      print('📋 [AUTH] Fetching patient info with token...');
+
+      final response = await http.get(
+        Uri.parse(AppConfig.patientInfoUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+        final patientInfoList = responseData
+            .map((json) => PatientInfo.fromJson(json as Map<String, dynamic>))
+            .toList();
+
+        if (patientInfoList.isNotEmpty) {
+          // Save patient info with first booklet as active
+          await savePatientInfo(patientInfoList, patientInfoList[0].bookletNo);
+          print(
+            '✅ [AUTH] Patient info fetched and saved (${patientInfoList.length} booklets)',
+          );
+          return true;
+        } else {
+          print('⚠️ [AUTH] No patient info returned from API');
+          return false;
+        }
+      } else {
+        print('⚠️ [AUTH] Failed to fetch patient info: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ [AUTH] Error fetching patient info: $e');
+      return false;
+    }
   }
 
   // Get saved user from SharedPreferences

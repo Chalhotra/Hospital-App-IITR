@@ -6,6 +6,8 @@ class AppConfig {
       dotenv.env['API_BASE_URL'] ?? 'http://10.17.1.5';
   static String get apiLoginEndpoint =>
       dotenv.env['API_LOGIN_ENDPOINT'] ?? '/api/Auth/login';
+  static String get apiRegisterEndpoint =>
+      dotenv.env['API_REGISTER_ENDPOINT'] ?? '/api/Auth/register';
   static String get apiPatientInfoEndpoint =>
       dotenv.env['API_PATIENT_INFO_ENDPOINT'] ?? '/api/Patients/my-info';
   static String get apiOpdByBookletEndpoint =>
@@ -20,6 +22,7 @@ class AppConfig {
 
   // Computed values
   static String get loginUrl => '$apiBaseUrl$apiLoginEndpoint';
+  static String get registerUrl => '$apiBaseUrl$apiRegisterEndpoint';
   static String get patientInfoUrl => '$apiBaseUrl$apiPatientInfoEndpoint';
   static String opdByBookletUrl(String bookletNo) =>
       '$apiBaseUrl$apiOpdByBookletEndpoint/$bookletNo';

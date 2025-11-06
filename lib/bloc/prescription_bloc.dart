@@ -44,7 +44,7 @@ class PrescriptionBloc extends Bloc<PrescriptionEvent, PrescriptionState> {
 
       emit(PrescriptionOpdListLoaded(opds));
     } catch (e) {
-      print('❌ Error loading OPD list: $e');
+      print('❌ Error loading   list: $e');
       emit(PrescriptionError('Failed to load appointments: $e'));
     }
   }
@@ -59,6 +59,8 @@ class PrescriptionBloc extends Bloc<PrescriptionEvent, PrescriptionState> {
       currentOpds = (state as PrescriptionOpdListLoaded).opds;
     } else if (state is PrescriptionDetailsLoaded) {
       currentOpds = (state as PrescriptionDetailsLoaded).opds;
+    } else if (state is PrescriptionDetailsLoading) {
+      currentOpds = (state as PrescriptionDetailsLoading).opds;
     }
 
     emit(PrescriptionDetailsLoading(currentOpds));
@@ -67,11 +69,16 @@ class PrescriptionBloc extends Bloc<PrescriptionEvent, PrescriptionState> {
       final user = await authRepository.getSavedUser();
 
       if (user == null || user.isTokenExpired) {
-        emit(
-          const PrescriptionError(
-            'Authentication required. Please login again.',
-          ),
-        );
+        // Restore the OPD list instead of showing auth error
+        if (currentOpds.isNotEmpty) {
+          emit(PrescriptionOpdListLoaded(currentOpds));
+        } else {
+          emit(
+            const PrescriptionError(
+              'Authentication required. Please login again.',
+            ),
+          );
+        }
         return;
       }
 
@@ -79,10 +86,20 @@ class PrescriptionBloc extends Bloc<PrescriptionEvent, PrescriptionState> {
       final prescriptions = await prescriptionRepository
           .getPrescriptionsByOpdId(user.token, event.opdId);
 
+      print('💊 [BLOC] Loaded ${prescriptions.length} prescriptions');
+      print('💊 [BLOC] Emitting PrescriptionDetailsLoaded state');
+
       emit(PrescriptionDetailsLoaded(currentOpds, prescriptions));
     } catch (e) {
       print('❌ Error loading prescription details: $e');
-      emit(PrescriptionError('Failed to load prescription details: $e'));
+      print('💊 [BLOC] Restoring OPD list state (${currentOpds.length} OPDs)');
+      // Restore the OPD list instead of going to error state
+      // This allows the user to go back and see the list
+      if (currentOpds.isNotEmpty) {
+        emit(PrescriptionOpdListLoaded(currentOpds));
+      } else {
+        emit(PrescriptionError('Failed to load prescription details: $e'));
+      }
     }
   }
 

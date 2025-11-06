@@ -12,6 +12,7 @@ class PdfService {
   static Future<String> generatePrescriptionPdf(
     List<Prescription> prescriptions,
     Opd opdInfo,
+    String bookletNo,
   ) async {
     try {
       print('📄 Starting PDF generation...');
@@ -70,18 +71,29 @@ class PdfService {
         // Use app-specific external storage directory (doesn't require permissions)
         directory = await getExternalStorageDirectory();
 
-        // Create a Downloads subfolder in app directory
+        // Create a Prescriptions subfolder with booklet-specific subfolder
         if (directory != null) {
-          final downloadsDir = Directory('${directory.path}/Prescriptions');
-          if (!await downloadsDir.exists()) {
-            await downloadsDir.create(recursive: true);
+          final bookletDir = Directory(
+            '${directory.path}/Prescriptions/$bookletNo',
+          );
+          if (!await bookletDir.exists()) {
+            await bookletDir.create(recursive: true);
           }
-          directory = downloadsDir;
+          directory = bookletDir;
         }
 
         print('📁 Using directory: ${directory?.path}');
       } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
+        final baseDirectory = await getApplicationDocumentsDirectory();
+
+        // Create booklet-specific subfolder for iOS
+        final bookletDir = Directory(
+          '${baseDirectory.path}/Prescriptions/$bookletNo',
+        );
+        if (!await bookletDir.exists()) {
+          await bookletDir.create(recursive: true);
+        }
+        directory = bookletDir;
       }
 
       if (directory == null) {
@@ -434,6 +446,244 @@ class PdfService {
     try {
       final date = DateTime.parse(dateStr);
       return DateFormat('MMM dd, yyyy - hh:mm a').format(date);
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  /// Generates a summary PDF of all prescriptions/OPDs in table format
+  /// Returns the file path where the PDF was saved
+  static Future<String> generateAllPrescriptionsSummaryPdf(
+    List<Opd> opds,
+    String bookletNo,
+  ) async {
+    try {
+      print('📄 Starting Summary PDF generation for ${opds.length} OPDs...');
+      final pdf = pw.Document();
+
+      // Add page with summary table
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(30),
+          build: (pw.Context context) => [
+            // Header
+            _buildSummaryHeader(opds.length),
+            pw.SizedBox(height: 20),
+            pw.Divider(thickness: 2),
+            pw.SizedBox(height: 20),
+
+            // Summary Table
+            _buildSummaryTable(opds),
+
+            pw.SizedBox(height: 30),
+
+            // Footer
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Divider(thickness: 1),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  'Generated on: ${DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now())}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey600,
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                ),
+                pw.SizedBox(height: 5),
+                pw.Text(
+                  'This is a computer-generated document',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    color: PdfColors.grey500,
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      print('📄 Summary PDF document created, attempting to save...');
+
+      // Save the PDF
+      final pdfBytes = await pdf.save();
+      print('📄 PDF bytes generated: ${pdfBytes.length} bytes');
+
+      // Get the appropriate directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+
+        if (directory != null) {
+          final bookletDir = Directory(
+            '${directory.path}/Prescriptions/$bookletNo',
+          );
+          if (!await bookletDir.exists()) {
+            await bookletDir.create(recursive: true);
+          }
+          directory = bookletDir;
+        }
+
+        print('📁 Using directory: ${directory?.path}');
+      } else if (Platform.isIOS) {
+        final baseDirectory = await getApplicationDocumentsDirectory();
+
+        // Create booklet-specific subfolder for iOS
+        final bookletDir = Directory(
+          '${baseDirectory.path}/Prescriptions/$bookletNo',
+        );
+        if (!await bookletDir.exists()) {
+          await bookletDir.create(recursive: true);
+        }
+        directory = bookletDir;
+      }
+
+      if (directory == null) {
+        throw Exception('Could not access storage directory');
+      }
+
+      // Create filename with timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'prescriptions_summary_$timestamp.pdf';
+      final file = File('${directory.path}/$fileName');
+
+      print('📄 Saving to: ${file.path}');
+
+      // Write the file
+      await file.writeAsBytes(pdfBytes);
+
+      print('✅ Summary PDF saved successfully to: ${file.path}');
+
+      return file.path;
+    } catch (e, stackTrace) {
+      print('❌ Error in Summary PDF generation: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Header for summary PDF
+  static pw.Widget _buildSummaryHeader(int totalOpds) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Center(
+          child: pw.Column(
+            children: [
+              pw.Text(
+                'IITR HOSPITAL',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.red800,
+                ),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Text(
+                'Prescriptions Summary Report',
+                style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Text(
+                'Total Records: $totalOpds',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.red800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build summary table of all OPDs
+  static pw.Widget _buildSummaryTable(List<Opd> opds) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey400),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(30), // #
+        1: const pw.FixedColumnWidth(50), // OPD ID
+        2: const pw.FlexColumnWidth(2), // Date
+        3: const pw.FlexColumnWidth(2), // Doctor
+        4: const pw.FlexColumnWidth(3), // Diagnosis
+      },
+      children: [
+        // Header Row
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.red800),
+          children: [
+            _buildTableHeaderCell('#'),
+            _buildTableHeaderCell('OPD ID'),
+            _buildTableHeaderCell('Date & Time'),
+            _buildTableHeaderCell('Doctor'),
+            _buildTableHeaderCell('Diagnosis'),
+          ],
+        ),
+        // Data Rows
+        ...opds.asMap().entries.map((entry) {
+          final index = entry.key;
+          final opd = entry.value;
+          final isEvenRow = index % 2 == 0;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: isEvenRow ? PdfColors.grey100 : PdfColors.white,
+            ),
+            children: [
+              _buildTableCell((index + 1).toString(), isCenter: true),
+              _buildTableCell(opd.opdid.toString(), isCenter: true),
+              _buildTableCell(_formatDateShort(opd.opdDate)),
+              _buildTableCell('Dr. ${opd.doctorCode}'),
+              _buildTableCell(opd.diagnosis.isEmpty ? '-' : opd.diagnosis),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  /// Build table header cell
+  static pw.Widget _buildTableHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.white,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  /// Build table data cell
+  static pw.Widget _buildTableCell(String text, {bool isCenter = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: const pw.TextStyle(fontSize: 8, color: PdfColors.black),
+        textAlign: isCenter ? pw.TextAlign.center : pw.TextAlign.left,
+        maxLines: 2,
+        overflow: pw.TextOverflow.clip,
+      ),
+    );
+  }
+
+  /// Format date string to short format
+  static String _formatDateShort(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd/MM/yy\nhh:mm a').format(date);
     } catch (e) {
       return dateStr;
     }

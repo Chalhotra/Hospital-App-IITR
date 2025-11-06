@@ -148,8 +148,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print('✅ [BLOC] Login successful, emitting authenticated state');
       emit(AuthAuthenticated(user));
     } catch (e) {
-      print('❌ [BLOC] Login failed: $e');
-      emit(AuthError(e.toString()));
+      // Extract clean error message
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(
+          11,
+        ); // Remove "Exception: " prefix
+      }
+
+      print('❌ [BLOC] Login failed: $errorMessage');
+      emit(AuthError(errorMessage));
     }
   }
 
